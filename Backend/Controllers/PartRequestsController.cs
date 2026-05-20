@@ -48,7 +48,7 @@ namespace Backend.Controllers
         }
 
         [HttpPut("{id}/status")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> UpdateStatus(int id, [FromQuery] string status)
         {
             var request = await _context.PartRequests.FindAsync(id);
@@ -56,6 +56,28 @@ namespace Backend.Controllers
             request.Status = status;
             await _context.SaveChangesAsync();
             return Ok(ApiResponse<object>.Ok(new { }, $"Status updated to {status}."));
+        }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> Update(int id, [FromBody] PartRequestDto dto)
+        {
+            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var request = await _context.PartRequests.FindAsync(id);
+            if (request == null) return NotFound(ApiResponse<object>.Fail("Part request not found."));
+
+            if (request.CustomerId != userId) return Forbid();
+
+            if (request.Status == "Completed")
+            {
+                return BadRequest(ApiResponse<object>.Fail("Completed part requests cannot be modified."));
+            }
+
+            request.PartName = dto.PartName;
+            request.Description = dto.Description;
+
+            await _context.SaveChangesAsync();
+            return Ok(ApiResponse<PartRequestResponseDto>.Ok(new PartRequestResponseDto { Id = request.Id, CustomerId = request.CustomerId, PartName = request.PartName, Description = request.Description, Status = request.Status, CreatedAt = request.CreatedAt }, "Part request updated successfully."));
         }
     }
 }

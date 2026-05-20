@@ -63,6 +63,13 @@ namespace Backend.Services
             _context.Parts.Add(part);
             await _context.SaveChangesAsync();
 
+            // Generate low stock alert if needed
+            var admin = await _context.Users.FirstOrDefaultAsync(u => u.Role == "Admin");
+            if (admin != null)
+            {
+                await CheckLowStockAsync(part.Id, admin.Id);
+            }
+
             // Reload with vendor navigation
             await _context.Entry(part).Reference(p => p.Vendor).LoadAsync();
             return MapToResponseDto(part);
@@ -84,6 +91,14 @@ namespace Backend.Services
             part.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            // Generate low stock alert if needed
+            var admin = await _context.Users.FirstOrDefaultAsync(u => u.Role == "Admin");
+            if (admin != null)
+            {
+                await CheckLowStockAsync(part.Id, admin.Id);
+            }
+
             await _context.Entry(part).Reference(p => p.Vendor).LoadAsync();
             return MapToResponseDto(part);
         }
@@ -108,13 +123,12 @@ namespace Backend.Services
             var part = await _context.Parts.FindAsync(partId);
             if (part == null) return;
 
-            if (part.Stock < part.MinStockLevel)
+            if (part.Stock < 10 || part.Stock < part.MinStockLevel)
             {
-                // Avoid duplicate notifications
+                // Avoid duplicate notifications (we look for ANY low stock notification, read or unread, to prevent repeating warnings)
                 var exists = await _context.Notifications
                     .AnyAsync(n => n.Type == "LowStock"
-                        && n.Message.Contains($"Part #{part.Id}")
-                        && !n.IsRead);
+                        && n.Message.Contains($"Part #{part.Id}"));
 
                 if (!exists)
                 {
@@ -122,9 +136,30 @@ namespace Backend.Services
                     {
                         UserId = adminUserId,
                         Type = "LowStock",
-                        Message = $"Low stock alert: \"{part.Name}\" (Part #{part.Id}) has only {part.Stock} units remaining (minimum: {part.MinStockLevel}).",
+                        Message = $"Low stock alert: \"{part.Name}\" (Part #{part.Id}) has only {part.Stock} units remaining (minimum: {Math.Max(10, part.MinStockLevel)}).",
                     });
                     await _context.SaveChangesAsync();
+                }
+            }
+            else
+            {
+                // If stock goes back above the low stock threshold, clear the old warning notifications so that if it becomes low again it triggers a new alert!
+                var existingAlerts = await _context.Notifications
+                    .Where(n => n.Type == "LowStock"
+                        && n.Message.Contains($"Part #{part.Id}"))
+                    .ToListAsync();
+
+                try
+                {
+                    if (existingAlerts.Any())
+                    {
+                        _context.Notifications.RemoveRange(existingAlerts);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    // Safe to ignore if another thread/request cleared these notifications already
                 }
             }
         }

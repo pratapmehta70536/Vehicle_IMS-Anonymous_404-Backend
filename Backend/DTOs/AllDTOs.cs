@@ -159,6 +159,9 @@ namespace Backend.DTOs
         [MaxLength(100)]
         public string? FullName { get; set; }
 
+        [EmailAddress]
+        public string? Email { get; set; }
+
         [MaxLength(20)]
         public string? Phone { get; set; }
 
@@ -352,6 +355,21 @@ namespace Backend.DTOs
         public List<SalesInvoiceItemDto> Items { get; set; } = new();
     }
 
+    public class SalesInvoiceUpdateDto
+    {
+        [Required]
+        public int CustomerId { get; set; }
+
+        [Required]
+        public string PaymentMethod { get; set; } = "Cash";
+
+        [Required]
+        public string PaymentStatus { get; set; } = "Paid";
+
+        [Required]
+        public List<SalesInvoiceItemDto> Items { get; set; } = new();
+    }
+
     public class SalesInvoiceItemDto
     {
         [Required]
@@ -470,6 +488,8 @@ namespace Backend.DTOs
         public int Id { get; set; }
         public int CustomerId { get; set; }
         public string CustomerName { get; set; } = string.Empty;
+        public string CustomerEmail { get; set; } = string.Empty;
+        public string CustomerPhone { get; set; } = string.Empty;
         public int Rating { get; set; }
         public string? Comment { get; set; }
         public DateTime CreatedAt { get; set; }

@@ -1,8 +1,10 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Backend;
 using Backend.Data;
 using Backend.Services;
 
@@ -29,7 +31,8 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
+            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+        RoleClaimType = System.Security.Claims.ClaimTypes.Role
     };
 });
 
@@ -42,8 +45,12 @@ builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 
-// ─── Controllers ───────────────────────────────────────────────────────
-builder.Services.AddControllers();
+// ─── Controllers (with kebab-case route convention) ────────────────────
+builder.Services.AddControllers(options =>
+{
+    options.Conventions.Add(new RouteTokenTransformerConvention(
+        new SlugifyParameterTransformer()));
+});
 
 // ─── Swagger / OpenAPI ─────────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
@@ -88,7 +95,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:3000")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -128,6 +135,37 @@ using (var scope = app.Services.CreateScope())
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin"),
             Role = "Admin",
             Phone = "0000000000",
+            IsActive = true
+        });
+        await context.SaveChangesAsync();
+    }
+
+    // Seed staff user if not exists
+    if (!context.Users.Any(u => u.Role == "Staff"))
+    {
+        context.Users.Add(new Backend.Models.User
+        {
+            FullName = "Demo Staff",
+            Email = "staff@demo.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("staff"),
+            Role = "Staff",
+            Phone = "1111111111",
+            IsActive = true
+        });
+        await context.SaveChangesAsync();
+    }
+
+    // Seed customer user if not exists
+    if (!context.Users.Any(u => u.Role == "Customer"))
+    {
+        context.Users.Add(new Backend.Models.User
+        {
+            FullName = "Demo Customer",
+            Email = "customer@demo.com",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("customer"),
+            Role = "Customer",
+            Phone = "2222222222",
+            Address = "123 Demo St",
             IsActive = true
         });
         await context.SaveChangesAsync();

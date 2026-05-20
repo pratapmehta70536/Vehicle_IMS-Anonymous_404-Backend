@@ -100,6 +100,14 @@ namespace Backend.Controllers
             if (!string.IsNullOrEmpty(dto.FullName)) user.FullName = dto.FullName;
             if (!string.IsNullOrEmpty(dto.Phone)) user.Phone = dto.Phone;
             if (!string.IsNullOrEmpty(dto.Address)) user.Address = dto.Address;
+            if (!string.IsNullOrEmpty(dto.Email) && user.Email != dto.Email)
+            {
+                if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
+                {
+                    return BadRequest(ApiResponse<object>.Fail("Email is already in use by another account."));
+                }
+                user.Email = dto.Email;
+            }
             user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return Ok(ApiResponse<object>.Ok(new { }, "Profile updated."));

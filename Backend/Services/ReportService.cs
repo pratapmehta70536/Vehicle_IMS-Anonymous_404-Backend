@@ -19,7 +19,7 @@ namespace Backend.Services
         {
             var start = startDate ?? DateTime.UtcNow.AddYears(-1);
             var end = endDate ?? DateTime.UtcNow;
-            var sales = await _context.SalesInvoices.Where(s => s.Date >= start && s.Date <= end).ToListAsync();
+            var sales = await _context.SalesInvoices.Where(s => s.PaymentStatus == "Paid" && s.Date >= start && s.Date <= end).ToListAsync();
             var purchases = await _context.PurchaseInvoices.Where(p => p.Date >= start && p.Date <= end).ToListAsync();
             var totalSales = sales.Sum(s => s.FinalAmount);
             var totalPurchases = purchases.Sum(p => p.TotalAmount);
@@ -62,11 +62,13 @@ namespace Backend.Services
         public async Task<CustomerReportDto> GetCustomerReportAsync()
         {
             var topSpenders = await _context.SalesInvoices.Include(si => si.Customer)
+                .Where(si => si.PaymentStatus == "Paid")
                 .GroupBy(si => si.CustomerId)
                 .Select(g => new TopSpenderDto { CustomerId = g.Key, CustomerName = g.First().Customer.FullName, Email = g.First().Customer.Email, TotalSpent = g.Sum(si => si.FinalAmount), PurchaseCount = g.Count() })
                 .OrderByDescending(t => t.TotalSpent).Take(20).ToListAsync();
 
             var regularCustomers = await _context.SalesInvoices.Include(si => si.Customer)
+                .Where(si => si.PaymentStatus == "Paid")
                 .GroupBy(si => si.CustomerId)
                 .Select(g => new RegularCustomerDto { CustomerId = g.Key, CustomerName = g.First().Customer.FullName, Email = g.First().Customer.Email, PurchaseCount = g.Count(), TotalSpent = g.Sum(si => si.FinalAmount), LastPurchase = g.Max(si => si.Date) })
                 .OrderByDescending(r => r.PurchaseCount).Take(20).ToListAsync();

@@ -31,9 +31,16 @@ namespace Backend.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] PurchaseInvoiceCreateDto dto)
         {
-            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-            var invoice = await _invoiceService.CreatePurchaseInvoiceAsync(dto, userId);
-            return Ok(ApiResponse<PurchaseInvoiceResponseDto>.Ok(invoice, "Purchase invoice created. Stock updated."));
+            try
+            {
+                var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var invoice = await _invoiceService.CreatePurchaseInvoiceAsync(dto, userId);
+                return Ok(ApiResponse<PurchaseInvoiceResponseDto>.Ok(invoice, "Purchase invoice created. Stock updated."));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message));
+            }
         }
     }
 }

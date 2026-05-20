@@ -35,6 +35,18 @@ namespace Backend.Controllers
             return Ok(ApiResponse<List<VehicleResponseDto>>.Ok(vehicles));
         }
 
+        // GET /vehicles — returns the logged-in customer's vehicles
+        [HttpGet]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> GetMine()
+        {
+            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var vehicles = await _context.Vehicles.Where(v => v.CustomerId == userId)
+                .Select(v => new VehicleResponseDto { Id = v.Id, CustomerId = v.CustomerId, VehicleNumber = v.VehicleNumber, Make = v.Make, Model = v.Model, Year = v.Year, Color = v.Color })
+                .ToListAsync();
+            return Ok(ApiResponse<List<VehicleResponseDto>>.Ok(vehicles));
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] VehicleDto dto)
         {
@@ -67,6 +79,19 @@ namespace Backend.Controllers
             vehicle.VehicleNumber = dto.VehicleNumber; vehicle.Make = dto.Make; vehicle.Model = dto.Model; vehicle.Year = dto.Year; vehicle.Color = dto.Color;
             await _context.SaveChangesAsync();
             return Ok(ApiResponse<VehicleResponseDto>.Ok(new VehicleResponseDto { Id = vehicle.Id, CustomerId = vehicle.CustomerId, VehicleNumber = vehicle.VehicleNumber, Make = vehicle.Make, Model = vehicle.Model, Year = vehicle.Year, Color = vehicle.Color }, "Vehicle updated."));
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var vehicle = await _context.Vehicles.FindAsync(id);
+            if (vehicle == null || vehicle.CustomerId != userId)
+                return NotFound(ApiResponse<object>.Fail("Vehicle not found."));
+            _context.Vehicles.Remove(vehicle);
+            await _context.SaveChangesAsync();
+            return Ok(ApiResponse<object>.Ok(new { }, "Vehicle removed."));
         }
     }
 }

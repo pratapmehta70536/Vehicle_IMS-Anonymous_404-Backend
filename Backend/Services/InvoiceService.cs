@@ -20,6 +20,10 @@ namespace Backend.Services
         Task<SalesInvoiceResponseDto?> GetSalesInvoiceByIdAsync(int id);
         Task<SalesInvoiceResponseDto> CreateSalesInvoiceAsync(SalesInvoiceCreateDto dto, int staffId);
         Task<List<SalesInvoiceResponseDto>> GetCustomerInvoicesAsync(int customerId);
+        Task<bool> DeleteSalesInvoiceAsync(int id);
+        Task<SalesInvoiceResponseDto> UpdateSalesInvoiceAsync(int id, SalesInvoiceUpdateDto dto, int staffId);
+        Task<bool> PayInvoiceOnlineAsync(int invoiceId, int customerId);
+        Task<bool> RefundSalesInvoiceAsync(int invoiceId);
     }
 
     public class InvoiceService : IInvoiceService
@@ -71,6 +75,20 @@ namespace Backend.Services
 
             try
             {
+                // Validate creator user exists to prevent foreign key violations due to stale sessions
+                var userExists = await _context.Users.AnyAsync(u => u.Id == createdById);
+                if (!userExists)
+                {
+                    throw new InvalidOperationException("The creator user does not exist. Your session may be stale; please log out and sign back in.");
+                }
+
+                // Validate vendor exists
+                var vendorExists = await _context.Vendors.AnyAsync(v => v.Id == dto.VendorId && v.IsActive);
+                if (!vendorExists)
+                {
+                    throw new InvalidOperationException("The selected vendor is invalid or inactive.");
+                }
+
                 var invoice = new PurchaseInvoice
                 {
                     VendorId = dto.VendorId,
@@ -109,6 +127,17 @@ namespace Backend.Services
 
                 invoice.TotalAmount = total;
                 await _context.SaveChangesAsync();
+
+                // Check and update low stock alerts (could resolve low stock warnings if stock went above threshold)
+                var admin = await _context.Users.FirstOrDefaultAsync(u => u.Role == "Admin");
+                if (admin != null)
+                {
+                    foreach (var itemDto in dto.Items)
+                    {
+                        await _partService.CheckLowStockAsync(itemDto.PartId, admin.Id);
+                    }
+                }
+
                 await transaction.CommitAsync();
 
                 return (await GetPurchaseInvoiceByIdAsync(invoice.Id))!;
@@ -244,6 +273,217 @@ namespace Backend.Services
                 .OrderByDescending(si => si.Date)
                 .Select(si => MapSalesInvoice(si))
                 .ToListAsync();
+        }
+
+        public async Task<bool> DeleteSalesInvoiceAsync(int id)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var invoice = await _context.SalesInvoices
+                    .Include(si => si.Items)
+                    .FirstOrDefaultAsync(si => si.Id == id);
+
+                if (invoice == null)
+                    return false;
+
+                // Restock parts
+                foreach (var item in invoice.Items)
+                {
+                    var part = await _context.Parts.FindAsync(item.PartId);
+                    if (part != null)
+                    {
+                        part.Stock += item.Quantity;
+                        part.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
+
+                _context.SalesInvoiceItems.RemoveRange(invoice.Items);
+                _context.SalesInvoices.Remove(invoice);
+
+                await _context.SaveChangesAsync();
+
+                // Check and update low stock alerts (since parts were restocked)
+                var admin = await _context.Users.FirstOrDefaultAsync(u => u.Role == "Admin");
+                if (admin != null)
+                {
+                    foreach (var item in invoice.Items)
+                    {
+                        await _partService.CheckLowStockAsync(item.PartId, admin.Id);
+                    }
+                }
+
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task<SalesInvoiceResponseDto> UpdateSalesInvoiceAsync(int id, SalesInvoiceUpdateDto dto, int staffId)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var invoice = await _context.SalesInvoices
+                    .Include(si => si.Items)
+                    .FirstOrDefaultAsync(si => si.Id == id);
+
+                if (invoice == null)
+                    throw new InvalidOperationException("Invoice not found.");
+
+                // Revert old stock
+                foreach (var item in invoice.Items)
+                {
+                    var part = await _context.Parts.FindAsync(item.PartId);
+                    if (part != null)
+                    {
+                        part.Stock += item.Quantity;
+                    }
+                }
+
+                // Remove old items
+                _context.SalesInvoiceItems.RemoveRange(invoice.Items);
+                await _context.SaveChangesAsync();
+
+                // Update invoice details
+                invoice.CustomerId = dto.CustomerId;
+                invoice.StaffId = staffId;
+                invoice.PaymentMethod = dto.PaymentMethod;
+
+                // Update date to UtcNow if transitioning to Paid so revenue counts for the current day
+                if (invoice.PaymentStatus != "Paid" && dto.PaymentStatus == "Paid")
+                {
+                    invoice.Date = DateTime.UtcNow;
+                }
+
+                invoice.PaymentStatus = dto.PaymentStatus;
+
+                decimal total = 0;
+
+                // Process new items
+                foreach (var itemDto in dto.Items)
+                {
+                    var part = await _context.Parts.FindAsync(itemDto.PartId);
+                    if (part == null || !part.IsActive)
+                        throw new InvalidOperationException($"Part with ID {itemDto.PartId} not found.");
+
+                    if (part.Stock < itemDto.Quantity)
+                        throw new InvalidOperationException(
+                            $"Insufficient stock for \"{part.Name}\". Available: {part.Stock}, Requested: {itemDto.Quantity}");
+
+                    var item = new SalesInvoiceItem
+                    {
+                        SalesInvoiceId = invoice.Id,
+                        PartId = itemDto.PartId,
+                        Quantity = itemDto.Quantity,
+                        UnitPrice = part.SellingPrice
+                    };
+
+                    _context.SalesInvoiceItems.Add(item);
+                    total += itemDto.Quantity * part.SellingPrice;
+
+                    // Deduct stock for new items
+                    part.Stock -= itemDto.Quantity;
+                    part.UpdatedAt = DateTime.UtcNow;
+                }
+
+                decimal discount = 0;
+                if (total > LoyaltyThreshold)
+                {
+                    discount = Math.Round(total * LoyaltyDiscountPercent / 100, 2);
+                }
+
+                invoice.TotalAmount = total;
+                invoice.Discount = discount;
+                invoice.FinalAmount = total - discount;
+
+                // Check low stock for all sold parts
+                var admin = await _context.Users.FirstOrDefaultAsync(u => u.Role == "Admin");
+                if (admin != null)
+                {
+                    foreach (var itemDto in dto.Items)
+                    {
+                        await _partService.CheckLowStockAsync(itemDto.PartId, admin.Id);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return (await GetSalesInvoiceByIdAsync(invoice.Id))!;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        public async Task<bool> PayInvoiceOnlineAsync(int invoiceId, int customerId)
+        {
+            var invoice = await _context.SalesInvoices.FirstOrDefaultAsync(si => si.Id == invoiceId && si.CustomerId == customerId);
+            if (invoice == null) throw new InvalidOperationException("Invoice not found.");
+            
+            if (invoice.PaymentMethod != "Online" || invoice.PaymentStatus != "Pending")
+                throw new InvalidOperationException("Invoice is not eligible for online payment.");
+
+            invoice.PaymentStatus = "Paid";
+            invoice.Date = DateTime.UtcNow; // Update date to today when payment is successfully realized!
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> RefundSalesInvoiceAsync(int invoiceId)
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var invoice = await _context.SalesInvoices
+                    .Include(si => si.Items)
+                    .FirstOrDefaultAsync(si => si.Id == invoiceId);
+
+                if (invoice == null) throw new InvalidOperationException("Invoice not found.");
+                
+                if (invoice.PaymentStatus == "Refunded")
+                    throw new InvalidOperationException("Invoice is already refunded.");
+
+                // Restock parts
+                foreach (var item in invoice.Items)
+                {
+                    var part = await _context.Parts.FindAsync(item.PartId);
+                    if (part != null)
+                    {
+                        part.Stock += item.Quantity;
+                        part.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
+
+                invoice.PaymentStatus = "Refunded";
+                
+                await _context.SaveChangesAsync();
+
+                // Check and update low stock alerts (since parts were restocked)
+                var admin = await _context.Users.FirstOrDefaultAsync(u => u.Role == "Admin");
+                if (admin != null)
+                {
+                    foreach (var item in invoice.Items)
+                    {
+                        await _partService.CheckLowStockAsync(item.PartId, admin.Id);
+                    }
+                }
+
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         // ─── Mapping Helpers ──────────────────────────────────────────

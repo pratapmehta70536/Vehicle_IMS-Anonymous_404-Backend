@@ -6,7 +6,7 @@
     "version": "v1"
   },
   "paths": {
-    "/api/Appointments": {
+    "/api/appointments": {
       "get": {
         "tags": [
           "Appointments"
@@ -47,7 +47,7 @@
         }
       }
     },
-    "/api/Appointments/my": {
+    "/api/appointments/my": {
       "get": {
         "tags": [
           "Appointments"
@@ -59,7 +59,7 @@
         }
       }
     },
-    "/api/Appointments/{id}": {
+    "/api/appointments/{id}": {
       "put": {
         "tags": [
           "Appointments"
@@ -101,7 +101,7 @@
         }
       }
     },
-    "/api/Auth/login": {
+    "/api/auth/login": {
       "post": {
         "tags": [
           "Auth"
@@ -132,7 +132,7 @@
         }
       }
     },
-    "/api/Auth/register": {
+    "/api/auth/register": {
       "post": {
         "tags": [
           "Auth"
@@ -163,7 +163,7 @@
         }
       }
     },
-    "/api/Auth/change-password": {
+    "/api/auth/change-password": {
       "post": {
         "tags": [
           "Auth"
@@ -194,7 +194,85 @@
         }
       }
     },
-    "/api/Customers": {
+    "/api/chats/users": {
+      "get": {
+        "tags": [
+          "Chats"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/chats/unread-count": {
+      "get": {
+        "tags": [
+          "Chats"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/chats/{otherUserId}": {
+      "get": {
+        "tags": [
+          "Chats"
+        ],
+        "parameters": [
+          {
+            "name": "otherUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/chats": {
+      "post": {
+        "tags": [
+          "Chats"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendChatMessageDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendChatMessageDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendChatMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/customers": {
       "get": {
         "tags": [
           "Customers"
@@ -235,7 +313,7 @@
         }
       }
     },
-    "/api/Customers/{id}": {
+    "/api/customers/{id}": {
       "get": {
         "tags": [
           "Customers"
@@ -258,7 +336,7 @@
         }
       }
     },
-    "/api/Customers/search": {
+    "/api/customers/search": {
       "get": {
         "tags": [
           "Customers"
@@ -279,7 +357,7 @@
         }
       }
     },
-    "/api/Customers/profile": {
+    "/api/customers/profile": {
       "put": {
         "tags": [
           "Customers"
@@ -310,7 +388,7 @@
         }
       }
     },
-    "/api/Customers/my-invoices": {
+    "/api/customers/my-invoices": {
       "get": {
         "tags": [
           "Customers"
@@ -322,7 +400,7 @@
         }
       }
     },
-    "/api/Dashboard/admin": {
+    "/api/dashboard/admin": {
       "get": {
         "tags": [
           "Dashboard"
@@ -334,7 +412,7 @@
         }
       }
     },
-    "/api/Dashboard/staff": {
+    "/api/dashboard/staff": {
       "get": {
         "tags": [
           "Dashboard"
@@ -346,7 +424,7 @@
         }
       }
     },
-    "/api/Dashboard/customer": {
+    "/api/dashboard/customer": {
       "get": {
         "tags": [
           "Dashboard"
@@ -358,7 +436,7 @@
         }
       }
     },
-    "/api/Notifications": {
+    "/api/notifications": {
       "get": {
         "tags": [
           "Notifications"
@@ -370,7 +448,7 @@
         }
       }
     },
-    "/api/Notifications/{id}/read": {
+    "/api/notifications/{id}/read": {
       "put": {
         "tags": [
           "Notifications"
@@ -393,7 +471,19 @@
         }
       }
     },
-    "/api/Notifications/send-credit-reminders": {
+    "/api/notifications/read-all": {
+      "put": {
+        "tags": [
+          "Notifications"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/notifications/send-credit-reminders": {
       "post": {
         "tags": [
           "Notifications"
@@ -405,7 +495,7 @@
         }
       }
     },
-    "/api/PartRequests": {
+    "/api/part-requests": {
       "get": {
         "tags": [
           "PartRequests"
@@ -446,7 +536,7 @@
         }
       }
     },
-    "/api/PartRequests/my": {
+    "/api/part-requests/my": {
       "get": {
         "tags": [
           "PartRequests"
@@ -458,7 +548,7 @@
         }
       }
     },
-    "/api/PartRequests/{id}/status": {
+    "/api/part-requests/{id}/status": {
       "put": {
         "tags": [
           "PartRequests"
@@ -488,7 +578,49 @@
         }
       }
     },
-    "/api/Parts": {
+    "/api/part-requests/{id}": {
+      "put": {
+        "tags": [
+          "PartRequests"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartRequestDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartRequestDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PartRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/parts": {
       "get": {
         "tags": [
           "Parts"
@@ -529,7 +661,7 @@
         }
       }
     },
-    "/api/Parts/{id}": {
+    "/api/parts/{id}": {
       "get": {
         "tags": [
           "Parts"
@@ -613,7 +745,7 @@
         }
       }
     },
-    "/api/PurchaseInvoices": {
+    "/api/purchase-invoices": {
       "get": {
         "tags": [
           "PurchaseInvoices"
@@ -654,7 +786,7 @@
         }
       }
     },
-    "/api/PurchaseInvoices/{id}": {
+    "/api/purchase-invoices/{id}": {
       "get": {
         "tags": [
           "PurchaseInvoices"
@@ -677,7 +809,7 @@
         }
       }
     },
-    "/api/Reports/financial": {
+    "/api/reports/financial": {
       "get": {
         "tags": [
           "Reports"
@@ -715,7 +847,7 @@
         }
       }
     },
-    "/api/Reports/customers": {
+    "/api/reports/customers": {
       "get": {
         "tags": [
           "Reports"
@@ -727,7 +859,7 @@
         }
       }
     },
-    "/api/Reviews": {
+    "/api/reviews": {
       "get": {
         "tags": [
           "Reviews"
@@ -768,7 +900,19 @@
         }
       }
     },
-    "/api/SalesInvoices": {
+    "/api/reviews/my": {
+      "get": {
+        "tags": [
+          "Reviews"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/sales-invoices": {
       "get": {
         "tags": [
           "SalesInvoices"
@@ -809,8 +953,69 @@
         }
       }
     },
-    "/api/SalesInvoices/{id}": {
+    "/api/sales-invoices/{id}": {
       "get": {
+        "tags": [
+          "SalesInvoices"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "SalesInvoices"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalesInvoiceUpdateDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalesInvoiceUpdateDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalesInvoiceUpdateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
         "tags": [
           "SalesInvoices"
         ],
@@ -832,7 +1037,65 @@
         }
       }
     },
-    "/api/SalesInvoices/{id}/email": {
+    "/api/sales-invoices/my": {
+      "get": {
+        "tags": [
+          "SalesInvoices"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/sales-invoices/{id}/pay": {
+      "post": {
+        "tags": [
+          "SalesInvoices"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/sales-invoices/{id}/refund": {
+      "post": {
+        "tags": [
+          "SalesInvoices"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/sales-invoices/{id}/send-email": {
       "post": {
         "tags": [
           "SalesInvoices"
@@ -874,7 +1137,7 @@
         }
       }
     },
-    "/api/Staff": {
+    "/api/staff": {
       "get": {
         "tags": [
           "Staff"
@@ -915,7 +1178,7 @@
         }
       }
     },
-    "/api/Staff/{id}": {
+    "/api/staff/{id}": {
       "get": {
         "tags": [
           "Staff"
@@ -999,7 +1262,49 @@
         }
       }
     },
-    "/api/Vehicles/customer/{customerId}": {
+    "/api/staff/{id}/reset-password": {
+      "post": {
+        "tags": [
+          "Staff"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/vehicles/customer/{customerId}": {
       "get": {
         "tags": [
           "Vehicles"
@@ -1022,7 +1327,7 @@
         }
       }
     },
-    "/api/Vehicles/my": {
+    "/api/vehicles/my": {
       "get": {
         "tags": [
           "Vehicles"
@@ -1034,7 +1339,17 @@
         }
       }
     },
-    "/api/Vehicles": {
+    "/api/vehicles": {
+      "get": {
+        "tags": [
+          "Vehicles"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
       "post": {
         "tags": [
           "Vehicles"
@@ -1065,7 +1380,7 @@
         }
       }
     },
-    "/api/Vehicles/for-customer/{customerId}": {
+    "/api/vehicles/for-customer/{customerId}": {
       "post": {
         "tags": [
           "Vehicles"
@@ -1107,7 +1422,7 @@
         }
       }
     },
-    "/api/Vehicles/{id}": {
+    "/api/vehicles/{id}": {
       "put": {
         "tags": [
           "Vehicles"
@@ -1147,9 +1462,30 @@
             "description": "OK"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Vehicles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
       }
     },
-    "/api/Vendors": {
+    "/api/vendors": {
       "get": {
         "tags": [
           "Vendors"
@@ -1190,7 +1526,7 @@
         }
       }
     },
-    "/api/Vendors/{id}": {
+    "/api/vendors/{id}": {
       "get": {
         "tags": [
           "Vendors"
@@ -1388,6 +1724,11 @@
             "type": "string",
             "nullable": true
           },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "nullable": true
+          },
           "phone": {
             "maxLength": 20,
             "type": "string",
@@ -1570,6 +1911,19 @@
         },
         "additionalProperties": false
       },
+      "ResetPasswordDto": {
+        "required": [
+          "newPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "newPassword": {
+            "minLength": 6,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ReviewDto": {
         "required": [
           "rating"
@@ -1634,6 +1988,50 @@
           "quantity": {
             "type": "integer",
             "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SalesInvoiceUpdateDto": {
+        "required": [
+          "customerId",
+          "items",
+          "paymentMethod",
+          "paymentStatus"
+        ],
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "paymentMethod": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "paymentStatus": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SalesInvoiceItemDto"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "SendChatMessageDto": {
+        "type": "object",
+        "properties": {
+          "receiverId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "messageText": {
+            "type": "string",
+            "nullable": true
           }
         },
         "additionalProperties": false

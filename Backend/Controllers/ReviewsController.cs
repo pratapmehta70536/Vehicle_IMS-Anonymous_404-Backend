@@ -19,7 +19,28 @@ namespace Backend.Controllers
         public async Task<IActionResult> GetAll()
         {
             var reviews = await _context.Reviews.Include(r => r.Customer).OrderByDescending(r => r.CreatedAt)
-                .Select(r => new ReviewResponseDto { Id = r.Id, CustomerId = r.CustomerId, CustomerName = r.Customer.FullName, Rating = r.Rating, Comment = r.Comment, CreatedAt = r.CreatedAt })
+                .Select(r => new ReviewResponseDto 
+                { 
+                    Id = r.Id, 
+                    CustomerId = r.CustomerId, 
+                    CustomerName = r.Customer.FullName, 
+                    CustomerEmail = r.Customer.Email ?? "",
+                    CustomerPhone = r.Customer.Phone ?? "",
+                    Rating = r.Rating, 
+                    Comment = r.Comment, 
+                    CreatedAt = r.CreatedAt 
+                })
+                .ToListAsync();
+            return Ok(ApiResponse<List<ReviewResponseDto>>.Ok(reviews));
+        }
+
+        [HttpGet("my")]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> GetMy()
+        {
+            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var reviews = await _context.Reviews.Where(r => r.CustomerId == userId).OrderByDescending(r => r.CreatedAt)
+                .Select(r => new ReviewResponseDto { Id = r.Id, CustomerId = r.CustomerId, CustomerName = "", Rating = r.Rating, Comment = r.Comment, CreatedAt = r.CreatedAt })
                 .ToListAsync();
             return Ok(ApiResponse<List<ReviewResponseDto>>.Ok(reviews));
         }

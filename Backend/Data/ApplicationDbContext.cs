@@ -27,6 +27,7 @@ namespace Backend.Data
         public DbSet<PartRequest> PartRequests => Set<PartRequest>();
         public DbSet<Review> Reviews => Set<Review>();
         public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -162,6 +163,20 @@ namespace Backend.Data
                       .WithMany(u => u.Notifications)
                       .HasForeignKey(n => n.UserId)
                       .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ── ChatMessage Configuration ───────────────────────────────
+            modelBuilder.Entity<ChatMessage>(entity =>
+            {
+                entity.HasOne(cm => cm.Sender)
+                      .WithMany()
+                      .HasForeignKey(cm => cm.SenderId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(cm => cm.Receiver)
+                      .WithMany()
+                      .HasForeignKey(cm => cm.ReceiverId)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
         }
     }

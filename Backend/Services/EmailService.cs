@@ -5,7 +5,7 @@ namespace Backend.Services
 {
     public interface IEmailService
     {
-        Task SendInvoiceEmailAsync(string toEmail, string customerName, int invoiceId, decimal amount, string invoiceDetails);
+        Task SendInvoiceEmailAsync(string toEmail, string customerName, decimal amount, string paymentMethod, string paymentStatus, string invoiceDetails);
         Task SendCreditReminderAsync(string toEmail, string customerName, decimal amount, int daysOverdue);
     }
 
@@ -20,21 +20,22 @@ namespace Backend.Services
             _logger = logger;
         }
 
-        public async Task SendInvoiceEmailAsync(string toEmail, string customerName, int invoiceId, decimal amount, string invoiceDetails)
+        public async Task SendInvoiceEmailAsync(string toEmail, string customerName, decimal amount, string paymentMethod, string paymentStatus, string invoiceDetails)
         {
-            var subject = $"Invoice #{invoiceId} - Vehicle Service Center";
+            var subject = "Invoice - Vehicle IMS";
             var body = $@"
 <html><body style='font-family:Arial,sans-serif;'>
-<h2 style='color:#1e40af;'>Vehicle Service Center</h2>
+<h2 style='color:#1e40af;'>Vehicle IMS</h2>
 <p>Dear {customerName},</p>
 <p>Please find your invoice details below:</p>
 <div style='background:#f1f5f9;padding:15px;border-radius:8px;'>
-<p><strong>Invoice #:</strong> {invoiceId}</p>
 <p><strong>Amount:</strong> Rs. {amount:N2}</p>
+<p><strong>Payment Method:</strong> {paymentMethod}</p>
+<p><strong>Payment Status:</strong> {paymentStatus}</p>
 {invoiceDetails}
 </div>
 <p>Thank you for your business!</p>
-<hr/><p style='color:#64748b;font-size:12px;'>Vehicle Parts & Service Center</p>
+<hr/><p style='color:#64748b;font-size:12px;'>Vehicle IMS</p>
 </body></html>";
 
             await SendEmailAsync(toEmail, subject, body);
@@ -57,6 +58,21 @@ namespace Backend.Services
 
         private async Task SendEmailAsync(string to, string subject, string htmlBody)
         {
+            var user = _config["Email:Username"];
+            var pass = _config["Email:Password"];
+
+            // Simulate email sending if credentials are not configured
+            if (string.IsNullOrEmpty(user) || string.IsNullOrEmpty(pass))
+            {
+                _logger.LogWarning("SMTP credentials not configured in appsettings.json. Simulating email send.");
+                _logger.LogInformation("--- SIMULATED EMAIL ---");
+                _logger.LogInformation("To: {To}", to);
+                _logger.LogInformation("Subject: {Subject}", subject);
+                _logger.LogInformation("Body length: {Length} characters", htmlBody.Length);
+                _logger.LogInformation("-----------------------");
+                return;
+            }
+
             try
             {
                 var email = new MimeMessage();
@@ -68,11 +84,9 @@ namespace Backend.Services
                 using var smtp = new SmtpClient();
                 var host = _config["Email:SmtpHost"] ?? "smtp.gmail.com";
                 var port = int.Parse(_config["Email:SmtpPort"] ?? "587");
+                
                 await smtp.ConnectAsync(host, port, MailKit.Security.SecureSocketOptions.StartTls);
-                var user = _config["Email:Username"];
-                var pass = _config["Email:Password"];
-                if (!string.IsNullOrEmpty(user) && !string.IsNullOrEmpty(pass))
-                    await smtp.AuthenticateAsync(user, pass);
+                await smtp.AuthenticateAsync(user, pass);
                 await smtp.SendAsync(email);
                 await smtp.DisconnectAsync(true);
 

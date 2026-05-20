@@ -48,11 +48,27 @@ namespace Backend.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin,Staff")]
+        [Authorize]
         public async Task<IActionResult> Update(int id, [FromBody] AppointmentUpdateDto dto)
         {
             var appointment = await _context.Appointments.FindAsync(id);
             if (appointment == null) return NotFound(ApiResponse<object>.Fail("Appointment not found."));
+
+            var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            var userId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+            if (userRole == "Customer")
+            {
+                if (appointment.CustomerId != userId)
+                    return Forbid();
+
+                if (dto.Status != "Cancelled" || dto.ScheduledDate.HasValue || !string.IsNullOrEmpty(dto.ServiceType) || dto.Notes != null)
+                    return BadRequest(ApiResponse<object>.Fail("Customers are only authorized to cancel their appointments."));
+
+                if (appointment.Status == "Confirmed" || appointment.Status == "Completed")
+                    return BadRequest(ApiResponse<object>.Fail("Confirmed or Completed appointments cannot be cancelled. Please contact staff."));
+            }
+
             if (dto.ScheduledDate.HasValue) appointment.ScheduledDate = dto.ScheduledDate.Value;
             if (!string.IsNullOrEmpty(dto.ServiceType)) appointment.ServiceType = dto.ServiceType;
             if (!string.IsNullOrEmpty(dto.Status)) appointment.Status = dto.Status;

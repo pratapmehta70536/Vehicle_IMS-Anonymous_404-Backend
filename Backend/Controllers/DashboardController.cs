@@ -35,8 +35,8 @@ namespace Backend.Controllers
                 TotalStaff = await _context.Users.CountAsync(u => u.Role == "Staff" && u.IsActive),
                 TotalCustomers = await _context.Users.CountAsync(u => u.Role == "Customer" && u.IsActive),
                 TotalVendors = await _context.Vendors.CountAsync(v => v.IsActive),
-                TotalRevenue = await _context.SalesInvoices.SumAsync(s => s.FinalAmount),
-                TodayRevenue = await _context.SalesInvoices.Where(s => s.Date.Date == today).SumAsync(s => s.FinalAmount),
+                TotalRevenue = await _context.SalesInvoices.Where(s => s.PaymentStatus == "Paid").SumAsync(s => s.FinalAmount),
+                TodayRevenue = await _context.SalesInvoices.Where(s => s.PaymentStatus == "Paid" && s.Date.Date == today).SumAsync(s => s.FinalAmount),
                 PendingAppointments = await _context.Appointments.CountAsync(a => a.Status == "Pending"),
                 UnreadNotifications = await _context.Notifications.CountAsync(n => n.UserId == userId && !n.IsRead),
                 LowStockPartsList = await _context.Parts.Include(p => p.Vendor).Where(p => p.IsActive && p.Stock < p.MinStockLevel)
@@ -57,7 +57,7 @@ namespace Backend.Controllers
             var dto = new StaffDashboardDto
             {
                 TodaySalesCount = await _context.SalesInvoices.CountAsync(s => s.StaffId == staffId && s.Date.Date == today),
-                TodaySalesAmount = await _context.SalesInvoices.Where(s => s.StaffId == staffId && s.Date.Date == today).SumAsync(s => s.FinalAmount),
+                TodaySalesAmount = await _context.SalesInvoices.Where(s => s.PaymentStatus == "Paid" && s.StaffId == staffId && s.Date.Date == today).SumAsync(s => s.FinalAmount),
                 TotalCustomers = await _context.Users.CountAsync(u => u.Role == "Customer" && u.IsActive),
                 PendingAppointments = await _context.Appointments.CountAsync(a => a.Status == "Pending"),
                 RecentSales = await _context.SalesInvoices.Include(s => s.Customer).Include(s => s.Staff).Include(s => s.Items).ThenInclude(i => i.Part)
@@ -78,7 +78,7 @@ namespace Backend.Controllers
             var dto = new CustomerDashboardDto
             {
                 TotalPurchases = await _context.SalesInvoices.CountAsync(s => s.CustomerId == userId),
-                TotalSpent = await _context.SalesInvoices.Where(s => s.CustomerId == userId).SumAsync(s => s.FinalAmount),
+                TotalSpent = await _context.SalesInvoices.Where(s => s.PaymentStatus == "Paid" && s.CustomerId == userId).SumAsync(s => s.FinalAmount),
                 VehicleCount = await _context.Vehicles.CountAsync(v => v.CustomerId == userId),
                 PendingAppointments = await _context.Appointments.CountAsync(a => a.CustomerId == userId && a.Status == "Pending"),
                 PendingPartRequests = await _context.PartRequests.CountAsync(pr => pr.CustomerId == userId && pr.Status == "Pending"),
